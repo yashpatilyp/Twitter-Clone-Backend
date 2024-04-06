@@ -284,3 +284,135 @@ export const likeOrDislikeComment = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+///.......................................................................................................................
+
+export const replyOnComment = async(req, res) => {
+  try {
+    const { replyId } = req.params;
+    const { commentContent } = req.body;
+
+    // Find the tweet containing the reply by searching for the reply ID
+    const tweetWithReply = await Tweet.findOne({ 'replies._id': replyId });
+
+    // Check if the tweet containing the reply exists
+    if (!tweetWithReply) {
+      return res.status(404).json({ message: 'Tweet containing the reply not found' });
+    }
+
+    // Find the specific reply within the tweet
+    const reply = tweetWithReply.replies.find(reply => reply._id.equals(replyId));
+
+    // Check if the reply exists
+    if (!reply) {
+      return res.status(404).json({ message: 'Reply not found' });
+    }
+
+    // Create the comment object
+    const comment = {
+      content: commentContent,
+      userId: req.user._id, // Assuming you have user authentication and req.user is available
+      profilepicture: req.user.profilepicture, 
+      createdAt: new Date(),
+      username: req.user.username
+    };
+
+    // Add the comment object to the reply's comments array
+    reply.comments.push(comment);
+    await tweetWithReply.save();
+
+    return res.status(201).json({ message: 'Comment added successfully', comment });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+
+}
+
+
+//................................{ delete comment on reply }..................................................................
+
+export const deleteCommentonReply = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+
+    // Find the tweet containing the comment by searching for the comment ID
+    const tweetWithComment = await Tweet.findOne({ 'replies.comments._id': commentId });
+
+    // Check if the tweet containing the comment exists
+    if (!tweetWithComment) {
+      return res.status(404).json({ message: 'Tweet containing the comment not found' });
+    }
+
+    // Find the specific reply containing the comment within the tweet
+    const replyContainingComment = tweetWithComment.replies.find(reply =>
+      reply.comments.some(comment => comment._id.equals(commentId))
+    );
+
+    // Check if the reply containing the comment exists
+    if (!replyContainingComment) {
+      return res.status(404).json({ message: 'Reply containing the comment not found' });
+    }
+
+    // Find the specific comment within the reply
+    const commentIndex = replyContainingComment.comments.findIndex(comment =>
+      comment._id.equals(commentId)
+    );
+
+    // Check if the comment exists
+    if (commentIndex === -1) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    // Remove the comment from the reply's comments array
+    replyContainingComment.comments.splice(commentIndex, 1);
+    await tweetWithComment.save();
+
+    return res.status(200).json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+//......................................................................................................................
+export const likeOrDislikeCommentOnCommentId = async (req, res) => {
+  try {
+    const loggedInUserId = req.user._id;
+    const { replyId, commentId } = req.params;
+
+    const tweetWithReply = await Tweet.findOne({ 'replies._id': replyId });
+
+    if (!tweetWithReply) {
+      return res.status(404).json({ message: 'Tweet containing the reply not found' });
+    }
+
+    const reply = tweetWithReply.replies.find(reply => reply._id.toString() === replyId);
+
+    if (!reply) {
+      return res.status(404).json({ message: 'Reply not found' });
+    }
+
+    const comment = reply.comments.find(comment => comment._id.toString() === commentId);
+
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const index = comment.likes.indexOf(loggedInUserId);
+    if (index !== -1) {
+      // If user has already liked the comment, remove the like
+      comment.likes.splice(index, 1);
+      await tweetWithReply.save();
+      return res.status(200).json({ message: 'Comment disliked', liked: false });
+    } else {
+      // If user hasn't liked the comment, add the like
+      comment.likes.push(loggedInUserId);
+      await tweetWithReply.save();
+      return res.status(200).json({ message: 'Comment liked', liked: true });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+

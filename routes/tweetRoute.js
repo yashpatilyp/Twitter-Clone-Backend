@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTweet, deleteTweet, getAllTweets, getFollowingTweets, likeOrDislike, addComments, deleteComment, getUserTweets, likeOrDislikeComment } from '../controllers/tweetController.js';
+import { createTweet, deleteTweet, getAllTweets, getFollowingTweets, likeOrDislike, addComments, deleteComment, getUserTweets, likeOrDislikeComment, replyOnComment, deleteCommentonReply, likeOrDislikeCommentOnCommentId } from '../controllers/tweetController.js';
 import isAuthenticated from '../config/auth.js';
 import multer from 'multer'
 // Multer configuration
@@ -16,5 +16,8 @@ router.route('/getUserTweet/:id').get(isAuthenticated,getUserTweets)
 router.route('/getfollwingtweets/:id').get(isAuthenticated,getFollowingTweets);
 router.route('/:id/reply').put(isAuthenticated,addComments);
 router.route('/deleteComment').delete(isAuthenticated,deleteComment);
-router.put('/tweet/:tweetId/comment/:commentId', likeOrDislikeComment);
+router.put('/tweet/:tweetId/comment/:commentId',isAuthenticated, likeOrDislikeComment);
+router.put('/addCommentOnReply/:replyId',isAuthenticated, replyOnComment);
+router.delete('/deleteCommentOnReply/:commentId',isAuthenticated, deleteCommentonReply)
+router.post('/reply/:replyId/comment/:commentId',isAuthenticated, likeOrDislikeCommentOnCommentId);
 export default router;

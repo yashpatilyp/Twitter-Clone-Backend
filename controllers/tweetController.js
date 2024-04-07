@@ -416,3 +416,82 @@ export const likeOrDislikeCommentOnCommentId = async (req, res) => {
   }
 };
 
+//..................................{ retweet by tweetid }.........................................................
+
+export const retweetByTweetId = async (req, res) => {
+  const { tweetId } = req.params;
+  const { user_id } = req.body;
+
+  try {
+    // Find the tweet by ID
+    const tweet = await Tweet.findById(tweetId);
+    if (!tweet) {
+      return res.status(404).json({ message: 'Tweet not found' });
+    }
+
+    // Check if user_id is already in retweetedBy array
+    const index = tweet.retweetedBy.indexOf(user_id);
+    if (index === -1) {
+      // If user_id is not in retweetedBy array, add it
+      tweet.retweetedBy.push(user_id);
+      await tweet.save();
+      // Fetch the user document based on user_id
+      const user = await User.findById(user_id);
+      const retweetCount = tweet.retweetedBy.length-1;
+      return res.status(200).json({ message: 'Tweet retweeted successfully', username: user.username, retweetCount});
+    }
+
+    // If user_id is already in retweetedBy array, remove it
+    tweet.retweetedBy.splice(index, 1);
+    await tweet.save();
+    // Fetch the user document based on user_id
+    const user = await User.findById(user_id);
+    res.status(200).json({ message: 'Tweet unretweeted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+//........................................{ retweetby using replyid }..........................................
+export const retweetByReplyId = async (req, res) => {
+  const { replyId } = req.params;
+  const { user_id } = req.body;
+
+  try {
+    // Find the tweet containing the reply
+    const tweet = await Tweet.findOne({ 'replies._id': replyId });
+    if (!tweet) {
+      return res.status(404).json({ message: 'Tweet containing the reply not found' });
+    }
+
+    // Find the reply within the tweet
+    const reply = tweet.replies.find(reply => reply._id == replyId);
+    if (!reply) {
+      return res.status(404).json({ message: 'Reply not found within the tweet' });
+    }
+
+    // Check if user_id is already in retweetedBy array within the reply
+    const index = reply.retweetedBy.indexOf(user_id);
+    if (index === -1) {
+      // If user_id is not in retweetedBy array, add it
+      reply.retweetedBy.push(user_id);
+      await tweet.save(); // Save the updated tweet
+      // Fetch the user document based on user_id
+      const user = await User.findById(user_id);
+      const retweetCount = reply.retweetedBy.length-1; // Update retweet count
+      return res.status(200).json({ message: 'Reply retweeted successfully', username: user.username, retweetCount,replyId });
+    }
+
+    // If user_id is already in retweetedBy array, remove it (unretweet)
+    reply.retweetedBy.splice(index, 1);
+    await tweet.save(); // Save the updated tweet
+ 
+  // Update retweet count
+    res.status(200).json({ message: 'Reply unretweeted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

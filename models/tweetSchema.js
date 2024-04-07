@@ -11,6 +11,10 @@ const tweetSchema = new mongoose.Schema({
     type: [mongoose.Schema.Types.ObjectId],
     default: []
   },
+  retweetedBy: {
+    type: [mongoose.Schema.Types.ObjectId],
+    default: []
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User', // Assuming you have a User model and 'User' is the name of the model
@@ -34,6 +38,10 @@ const tweetSchema = new mongoose.Schema({
       default: []
     },
     dislikes: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: []
+    },
+    retweetedBy: {
       type: [mongoose.Schema.Types.ObjectId],
       default: []
     },

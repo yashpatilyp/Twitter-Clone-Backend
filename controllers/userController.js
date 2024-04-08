@@ -1,4 +1,5 @@
 import { User } from "../models/userSchema.js";
+import {Tweet} from "../models/tweetSchema.js"
 import bcryptjs from "bcryptjs";
 import jwt from 'jsonwebtoken';
 import dotenv from "dotenv";
@@ -266,3 +267,24 @@ export const unfollow = async(req, res)=>{
     console.log(error)
   }
 }
+
+//............................................................................................................
+
+export const fetchBookmarkedTweets = async (req, res) => {
+  try {
+    const loggedInUserId = req.params.userId; // Assuming userId is passed as a parameter
+    const user = await User.findById(loggedInUserId).populate('bookmarks'); // Assuming bookmarks store tweet IDs
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Assuming each bookmarked tweet has its own model called Tweet
+    const bookmarkedTweets = await Tweet.find({ _id: { $in: user.bookmarks } });
+
+    return res.status(200).json({ bookmarkedTweets });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

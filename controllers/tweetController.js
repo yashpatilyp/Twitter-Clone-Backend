@@ -118,47 +118,63 @@ export const likeOrDislike = async (req, res) => {
 
 //......................{ get all tweets }.............................................
 
+export const getAllTweets = async (req, res) => {
+  try {
+    const id = req.params.id;
 
-export const getAllTweets= async (req, res) => {
-     //loggedinUser tweet + follwing user tweets
-     try {
-          const id = req.params.id;
-          const loggedInUser = await User.findById(id);
-          const loggedInUserTweets = await Tweet.find({userId:id});
-          const follwingUserTweet = await Promise.all(loggedInUser.following.map((otherUserId)=>{
-               return Tweet.find({userId:otherUserId});
-          }));
-          return res.status(200).json({
-               tweets:loggedInUserTweets.concat(...follwingUserTweet)
-          })
-          
-     } catch (error) {
-          console.log(error);
-          
-     }
-} 
+    // Find the logged-in user
+    const loggedInUser = await User.findById(id);
+
+    // Find all tweets of the logged-in user
+    const loggedInUserTweets = await Tweet.find({ userId: id }).sort({ createdAt: -1 });
+
+    // Find all tweets of users the logged-in user is following
+    const followingUserTweets = await Tweet.find({ userId: { $in: loggedInUser.following } }).sort({ createdAt: -1 });
+
+    // Concatenate the logged-in user's tweets and following users' tweets
+    const allTweets = loggedInUserTweets.concat(followingUserTweets);
+
+    // Sort all tweets by createdAt field in descending order (latest tweet first)
+    allTweets.sort((a, b) => b.createdAt - a.createdAt);
+
+    return res.status(200).json({
+      tweets: allTweets
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 
 //...........................{ get Following Tweets }.......................................
+export const getFollowingTweets = async (req, res) => {
+  try {
+    const id = req.params.id;
 
-export const getFollowingTweets = async (req,res)=>{
-     try {
-         
-          const id = req.params.id;
-          const loggedInUser = await User.findById(id);
-         
-          const follwingUserTweet = await Promise.all(loggedInUser.following.map((otherUserId)=>{
-               return Tweet.find({userId:otherUserId});
-          }));
-          return res.status(200).json({
-               tweets:[].concat(...follwingUserTweet)
-          })
- 
+    // Find the logged-in user
+    const loggedInUser = await User.findById(id);
 
-     } catch (error) {
-          console.log(error);
-     }
-}
+    // Find tweets of users the logged-in user is following
+    const followingUserTweets = await Promise.all(loggedInUser.following.map((otherUserId) => {
+      return Tweet.find({ userId: otherUserId }).sort({ createdAt: -1 }); // Sort by createdAt in descending order
+    }));
+
+    // Concatenate the tweets of following users into a single array
+    const tweets = [].concat(...followingUserTweets);
+
+    // Sort the concatenated array of tweets by createdAt in descending order
+    tweets.sort((a, b) => b.createdAt - a.createdAt);
+
+    return res.status(200).json({
+      tweets: tweets
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 //.................................{ logged in user tweets}.....................................
 
 export const getUserTweets = async (req, res) => {
@@ -495,3 +511,4 @@ export const retweetByReplyId = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+

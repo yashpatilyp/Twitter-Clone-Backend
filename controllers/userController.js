@@ -1,8 +1,10 @@
 import { User } from "../models/userSchema.js";
 import {Tweet} from "../models/tweetSchema.js"
+import nodemailer from 'nodemailer';
 import bcryptjs from "bcryptjs";
 import jwt from 'jsonwebtoken';
 import dotenv from "dotenv";
+
 dotenv.config({
   path:"../controllers/.env"
 })
@@ -52,7 +54,7 @@ export const Register = async (req, res) => {
 
 export const UpdateProfile = async (req, res) => {
   try {
-    const { name, dob, location, profilepicture, bio } = req.body;
+    const { name, dob, location, profilepicture, bio,email } = req.body;
     console.log("Request Body:", req.body); // Log the request body for debugging
     const userId = req.params.id; // Assuming user ID is passed as a route parameter
     
@@ -72,14 +74,16 @@ export const UpdateProfile = async (req, res) => {
     if (location) user.location = location;
     if (profilepicture) user.profilepicture = profilepicture;
     if (bio) user.bio = bio;
+    if (email) user.email = email;
 
     // Save the updated user object
     await user.save();
-
+   
     return res.status(200).json({
       message: "Profile updated successfully",
       success: true,
       user: user // Send back the updated user object in the response
+      
     });
   } catch (error) {
     console.log("Error updating profile:", error);
@@ -131,6 +135,7 @@ export const Login = async (req, res) => {
       followers: user.followers,
       following: user.following,
       bookmarks: user.bookmarks,
+      bio:user.bio,
     dob:user.dob,
   location: user.location,
 profilepicture: user.profilepicture};
@@ -286,5 +291,134 @@ export const fetchBookmarkedTweets = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+//////..............................{ Forgot password link on mail }....................................................................
+
+export const ForgotPassword = async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({
+        message: "Username field is required",
+        success: false,
+      });
+    }
+    
+    // Check if user exists with the provided username
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({
+        message: "User with this username does not exist",
+        success: false,
+      });
+    }
+   
+    // Generate a unique token for password reset link
+    const resetToken = generateResetToken();
+
+    // Save the reset token to the user document
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // Token expires in 1 hour
+    await user.save();
+
+    // Send password reset email
+    sendResetPasswordEmail(user.email, resetToken);
+
+    return res.status(200).json({
+      message: "Password reset instructions have been sent to your email",
+      success: true,
+    });
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
+// Function to generate a unique reset token (you can use any method you prefer)
+function generateResetToken() {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
+// Function to send password reset email
+async function sendResetPasswordEmail(email, resetToken) {
+  // Create a nodemailer transporter (configure this based on your email service provider)
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'yashpatilyp452001@gmail.com', // your gmail address
+      pass: 'drjv olue clof uuto' // your gmail password
+    }
+  });
+
+  // Define email content
+  const mailOptions = {
+    from: 'yashpatilyp452001@gmail.com',
+    to: email,
+    subject: 'Reset Your Password',
+    html: `
+    <div style="font-family: Arial, sans-serif; font-size: 16px;">
+      <p>Hello,</p>
+      <p>You have requested to reset your password. Please click the following link to reset your password:</p>
+      <p><a href="https://twitter-clone-frontend-sandy.vercel.app/reset-password?token=${resetToken}" style="color: #007bff; text-decoration: none;">Reset Password</a></p>
+      <p>Please note that this link is valid for 1 hour.</p>
+      <p>If you did not request this password reset, you can ignore this email.</p>
+      <p>Best regards,<br>MY-Twiiter</p>
+    </div>
+  `
+};
+  
+
+  // Send email
+  await transporter.sendMail(mailOptions);
+}
+
+
+
+
+
+
+
+///............................................{reset Password}..............................................................................................
+
+
+
+export const Reset = async (req, res) => {
+  try {
+    const {  password } = req.body;
+  
+    if (!password) {
+      return res.status(400).json({
+        message: "Password field is required",
+        success: false,
+      });
+    }
+    
+   
+   
+    // Hash the temporary password before saving it
+    const hashedPassword = await bcryptjs.hash(password, 16);
+
+    // Update user's password with the temporary password
+    await User.updateOne( { password: hashedPassword });
+
+    // Optionally, you can send a success response here
+    return res.status(200).json({
+      message: "Password reset successful",
+      success: true,
+    });
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
   }
 };
